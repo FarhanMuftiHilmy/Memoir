@@ -1,0 +1,239 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isVerifiedOwner(userId) {
+      return isVerifiedUser() && request.auth.uid == userId;
+    }
+
+    function isValidColor(color) {
+      return color in ['yellow', 'orange', 'red', 'green', 'teal', 'blue', 'purple', 'pink', 'gray'];
+    }
+
+    function isValidChecklistArray(items) {
+      return items is list &&
+        items.size() <= 200 &&
+        (
+          items.size() == 0 ||
+          (
+            items[0] is map &&
+            items[0].keys().hasAll(['id', 'text', 'checked']) &&
+            items[0].keys().hasOnly(['id', 'text', 'checked']) &&
+            items[0].id is string &&
+            items[0].id.size() >= 1 &&
+            items[0].id.size() <= 64 &&
+            items[0].text is string &&
+            items[0].text.size() <= 1000 &&
+            items[0].checked is bool
+          )
+        );
+    }
+
+    function isValidNote(data, userId, noteId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'title', 'type', 'content', 'items', 'color',
+          'isPinned', 'isArchived', 'isTrashed', 'isLocked', 'isWidget',
+          'reminderAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'title', 'type', 'content', 'items', 'color',
+          'isPinned', 'isArchived', 'isTrashed', 'isLocked', 'isWidget',
+          'reminderAt', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.id == noteId &&
+        isValidId(data.ownerId) &&
+        data.ownerId == userId &&
+        data.title is string &&
+        data.title.size() <= 200 &&
+        data.type in ['text', 'checklist'] &&
+        data.content is string &&
+        data.content.size() <= 50000 &&
+        isValidChecklistArray(data.items) &&
+        isValidColor(data.color) &&
+        data.isPinned is bool &&
+        data.isArchived is bool &&
+        data.isTrashed is bool &&
+        data.isLocked is bool &&
+        data.isWidget is bool &&
+        data.reminderAt is string &&
+        data.reminderAt.size() <= 40 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBackup(data, userId, backupId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'label', 'trigger', 'noteCount', 'notes', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerId', 'label', 'trigger', 'noteCount', 'notes', 'createdAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.id == backupId &&
+        isValidId(data.ownerId) &&
+        data.ownerId == userId &&
+        data.label is string &&
+        data.label.size() >= 1 &&
+        data.label.size() <= 120 &&
+        data.trigger in ['manual', 'auto'] &&
+        data.noteCount is int &&
+        data.noteCount >= 0 &&
+        data.noteCount <= 300 &&
+        data.notes is list &&
+        data.notes.size() <= 300 &&
+        (
+          data.notes.size() == 0 ||
+          (
+            data.notes[0] is map &&
+            data.notes[0].keys().hasAll(['id', 'title', 'type', 'color']) &&
+            data.notes[0].id is string &&
+            data.notes[0].id.size() <= 128 &&
+            data.notes[0].title is string &&
+            data.notes[0].title.size() <= 200
+          )
+        ) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidPreferences(data, userId) {
+      return data.keys().hasAll([
+          'ownerId', 'theme', 'viewMode', 'defaultColor',
+          'autoBackupInterval', 'lastAutoBackupAt',
+          'lockHash', 'lockSalt', 'autoLockMinutes', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId', 'theme', 'viewMode', 'defaultColor',
+          'autoBackupInterval', 'lastAutoBackupAt',
+          'lockHash', 'lockSalt', 'autoLockMinutes', 'updatedAt'
+        ]) &&
+        isValidId(data.ownerId) &&
+        data.ownerId == userId &&
+        data.theme in ['system', 'light', 'dark'] &&
+        data.viewMode in ['grid', 'list', 'details'] &&
+        isValidColor(data.defaultColor) &&
+        data.autoBackupInterval in ['off', 'on_change', 'hourly', 'daily'] &&
+        data.lastAutoBackupAt is string &&
+        data.lastAutoBackupAt.size() <= 40 &&
+        data.lockHash is string &&
+        data.lockHash.size() <= 128 &&
+        data.lockSalt is string &&
+        data.lockSalt.size() <= 64 &&
+        data.autoLockMinutes is int &&
+        data.autoLockMinutes >= 0 &&
+        data.autoLockMinutes <= 1440 &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Notes Collection ---
+    match /users/{userId}/notes/{noteId} {
+      allow get: if isValidId(userId) && isValidId(noteId) && isOwner(userId);
+      allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isValidId(userId) && isValidId(noteId) &&
+        isVerifiedOwner(userId) &&
+        isValidNote(incoming(), userId, noteId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId) && isValidId(noteId) &&
+        isVerifiedOwner(userId) &&
+        isValidNote(incoming(), userId, noteId) &&
+        incoming().id == existing().id &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'type', 'content', 'items', 'color', 'reminderAt', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'isPinned', 'isArchived', 'isTrashed', 'isLocked', 'isWidget', 'color', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'type', 'content', 'items', 'color',
+            'isPinned', 'isArchived', 'isTrashed', 'isLocked', 'isWidget',
+            'reminderAt', 'updatedAt'
+          ])
+        );
+
+      allow delete: if isValidId(userId) && isValidId(noteId) && isVerifiedOwner(userId);
+    }
+
+    // --- Backup Snapshots Collection ---
+    match /users/{userId}/backups/{backupId} {
+      allow get: if isValidId(userId) && isValidId(backupId) && isOwner(userId);
+      allow list: if isValidId(userId) && isOwner(userId) && resource.data.ownerId == request.auth.uid;
+
+      allow create: if isValidId(userId) && isValidId(backupId) &&
+        isVerifiedOwner(userId) &&
+        isValidBackup(incoming(), userId, backupId) &&
+        incoming().createdAt == request.time;
+
+      allow update: if false;
+
+      allow delete: if isValidId(userId) && isValidId(backupId) && isVerifiedOwner(userId);
+    }
+
+    // --- User Preferences Singleton ---
+    match /users/{userId}/settings/{settingId} {
+      allow get: if isValidId(userId) && settingId == 'preferences' && isOwner(userId);
+      allow list: if false;
+
+      allow create: if isValidId(userId) && settingId == 'preferences' &&
+        isVerifiedOwner(userId) &&
+        isValidPreferences(incoming(), userId) &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId) && settingId == 'preferences' &&
+        isVerifiedOwner(userId) &&
+        isValidPreferences(incoming(), userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().updatedAt == request.time &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'theme', 'viewMode', 'defaultColor', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'autoBackupInterval', 'lastAutoBackupAt', 'updatedAt'
+          ]) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'lockHash', 'lockSalt', 'autoLockMinutes', 'updatedAt'
+          ])
+        );
+
+      allow delete: if false;
+    }
+  }
+}

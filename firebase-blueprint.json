@@ -1,0 +1,237 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Note",
+      "description": "A color-coded text note or interactive checklist belonging to a user.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique identifier for the note."
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the note owner."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Note title."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "checklist"],
+          "description": "Whether the note is freeform text or an interactive checklist."
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 50000,
+          "description": "Body content for text notes."
+        },
+        "items": {
+          "type": "array",
+          "description": "Checklist items for checklist notes (max 200 items)."
+        },
+        "color": {
+          "type": "string",
+          "enum": ["yellow", "orange", "red", "green", "teal", "blue", "purple", "pink", "gray"],
+          "description": "ColorNote palette key."
+        },
+        "isPinned": {
+          "type": "boolean",
+          "description": "Whether the note is pinned to the top."
+        },
+        "isArchived": {
+          "type": "boolean",
+          "description": "Whether the note is archived."
+        },
+        "isTrashed": {
+          "type": "boolean",
+          "description": "Whether the note is in the recycle bin."
+        },
+        "isLocked": {
+          "type": "boolean",
+          "description": "Whether the note requires the master password to view or edit."
+        },
+        "isWidget": {
+          "type": "boolean",
+          "description": "Whether the note is pinned to the Home Screen Widget dock."
+        },
+        "reminderAt": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Optional ISO-8601 reminder date/time string or empty string."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the note was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the note was last modified."
+        }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "title",
+        "type",
+        "content",
+        "items",
+        "color",
+        "isPinned",
+        "isArchived",
+        "isTrashed",
+        "isLocked",
+        "isWidget",
+        "reminderAt",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BackupSnapshot": {
+      "title": "BackupSnapshot",
+      "description": "Automated or manual cloud backup snapshot of a user's notes.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique identifier for the backup snapshot."
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the snapshot owner."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Human-readable label for this snapshot."
+        },
+        "trigger": {
+          "type": "string",
+          "enum": ["manual", "auto"],
+          "description": "Whether the snapshot was triggered manually or automatically."
+        },
+        "noteCount": {
+          "type": "integer",
+          "description": "Number of notes captured in this backup snapshot."
+        },
+        "notes": {
+          "type": "array",
+          "description": "Array of serialized note snapshot objects (max 300)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the backup was created."
+        }
+      },
+      "required": ["id", "ownerId", "label", "trigger", "noteCount", "notes", "createdAt"]
+    },
+    "UserPreferences": {
+      "title": "UserPreferences",
+      "description": "Per-user workspace preferences, theme, auto-backup schedule, and salted master lock hash.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the settings owner."
+        },
+        "theme": {
+          "type": "string",
+          "enum": ["system", "light", "dark"],
+          "description": "Selected color theme mode."
+        },
+        "viewMode": {
+          "type": "string",
+          "enum": ["grid", "list", "details"],
+          "description": "Selected note layout density."
+        },
+        "defaultColor": {
+          "type": "string",
+          "enum": ["yellow", "orange", "red", "green", "teal", "blue", "purple", "pink", "gray"],
+          "description": "Default color for newly created notes."
+        },
+        "autoBackupInterval": {
+          "type": "string",
+          "enum": ["off", "on_change", "hourly", "daily"],
+          "description": "Automated cloud backup schedule."
+        },
+        "lastAutoBackupAt": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "ISO timestamp of the most recent automated backup."
+        },
+        "lockHash": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "SHA-256 hex digest of salted master password, or empty string when disabled."
+        },
+        "lockSalt": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "Random hex salt for master password verification, or empty string when disabled."
+        },
+        "autoLockMinutes": {
+          "type": "integer",
+          "description": "Minutes before locked notes automatically re-lock (0 = immediate/manual)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when preferences were last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "theme",
+        "viewMode",
+        "defaultColor",
+        "autoBackupInterval",
+        "lastAutoBackupAt",
+        "lockHash",
+        "lockSalt",
+        "autoLockMinutes",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/notes/{noteId}": {
+      "schema": {
+        "$ref": "#/entities/Note"
+      },
+      "description": "User-owned color notes and checklists synced across devices."
+    },
+    "/users/{userId}/backups/{backupId}": {
+      "schema": {
+        "$ref": "#/entities/BackupSnapshot"
+      },
+      "description": "User-owned automated and manual cloud backup snapshots."
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/UserPreferences"
+      },
+      "description": "User-owned workspace preferences and salted master lock hash."
+    }
+  }
+}

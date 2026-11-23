@@ -1,0 +1,6 @@
+{
+  "name": "ChromaNote",
+  "description": "Color-coded notes and checklists with real-time device sync, automated backups, password protection, quick home screen widgets, dark mode, and external storage export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
