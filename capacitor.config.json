@@ -1,0 +1,11 @@
+{
+  "appId": "com.memoir.notes",
+  "appName": "Memoir",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
